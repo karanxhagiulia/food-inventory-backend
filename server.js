@@ -24,8 +24,8 @@ const client = new MongoClient(uri, {
   },
 });
 
-const dbName = 'foodInventory';
-const collectionName = 'foods';
+const dbName = 'foodInventory1';
+const collectionName = 'foods1';
 
 let db, collection;
 
@@ -85,7 +85,7 @@ app.get('/api/food/search', async (req, res) => {
 });
 
 app.post('/api/food/add', async (req, res) => {
-    const { name, ingredients, brands, quantity, categories, imageUrl, url } = req.body;
+    const { name, ingredients, brands, quantity, categories, imageUrl, url, expiryDate } = req.body;
   
     // Ensure brands is a string (no conversion to array)
     const trimmedBrands = brands ? brands.trim() : '';
@@ -102,7 +102,8 @@ app.post('/api/food/add', async (req, res) => {
       ingredients,
       categories,
       imageUrl,
-      url
+      url,
+      expiryDate // Include expiryDate
     });
   
     // Check for missing required fields (trimmed)
@@ -126,7 +127,8 @@ app.post('/api/food/add', async (req, res) => {
         quantity: trimmedQuantity,
         categories,    // optional
         imageUrl,      // optional
-        url            // optional
+        url,           // optional
+        expiryDate     // optional
       });
   
       const insertedItem = await collection.findOne({ _id: result.insertedId });
@@ -142,9 +144,9 @@ app.post('/api/food/add', async (req, res) => {
     }
   });
   
+  
 
-// GET: Fetch inventory with count of identical items in stock
-app.get('/api/food/inventory', async (req, res) => {
+  app.get('/api/food/inventory', async (req, res) => {
     try {
       const inventory = await collection.find().toArray();
   
@@ -169,58 +171,32 @@ app.get('/api/food/inventory', async (req, res) => {
     }
   });
   
+  
 
 // DELETE: Delete a product by ID
 app.delete('/api/food/delete/:id', async (req, res) => {
-  const { id } = req.params;
+    const { id } = req.params;
 
-  try {
-    const result = await collection.findOneAndDelete({ _id: new ObjectId(id) });
-
-    if (!result.value) {
-      return res.status(404).json({ error: 'Product not found' });
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid product ID' });
     }
-
-    res.status(200).json({ message: 'Product deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting product:', error);
-    res.status(500).json({ error: 'Failed to delete product' });
-  }
-});
-
-// PUT: Update product quantity
-app.put('/api/food/update/:id', async (req, res) => {
-  const { id } = req.params;
-  const { quantity } = req.body;
-
-  if (quantity < 0) {
-    return res.status(400).json({ error: 'Quantity cannot be negative' });
-  }
-
-  try {
-    if (quantity === 0) {
-      const result = await collection.deleteOne({ _id: new ObjectId(id) });
-      if (result.deletedCount === 0) {
-        return res.status(404).json({ error: 'Product not found to delete' });
-      }
-      return res.status(200).json({ message: 'Product deleted due to quantity being 0' });
-    } else {
-      const result = await collection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: { quantity } }
-      );
-
-      if (result.matchedCount === 0) {
+    
+    try {
+      const result = await collection.findOneAndDelete({ _id: new ObjectId(id) });
+    
+      if (!result.value) {
         return res.status(404).json({ error: 'Product not found' });
       }
-
-      res.status(200).json({ message: 'Product quantity updated' });
+    
+      res.status(200).json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({ error: 'Failed to delete product' });
     }
-  } catch (error) {
-    console.error('Error updating quantity:', error);
-    res.status(500).json({ error: 'Failed to update product quantity' });
-  }
+    
 });
+
+
 
 // GET: Fetch product by ID
 app.get('/api/food/:id', async (req, res) => {
@@ -239,3 +215,50 @@ app.get('/api/food/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch product' });
   }
 });
+
+app.patch('/api/food/update/:id', async (req, res) => {
+    const { id } = req.params;
+    const { expiryDate } = req.body;
+  
+    try {
+      // Ensure expiryDate is provided
+      if (!expiryDate) {
+        return res.status(400).json({ error: 'Expiry date is required' });
+      }
+  
+      const updatedProduct = await collection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { expiryDate } }
+      );
+  
+      if (updatedProduct.modifiedCount === 0) {
+        return res.status(404).json({ error: 'Product not found or expiry date is the same' });
+      }
+  
+      res.status(200).json({ message: 'Expiry date updated successfully' });
+    } catch (err) {
+      console.error('Error updating expiry date:', err);
+      res.status(500).json({ error: 'Failed to update expiry date' });
+    }
+  });
+
+
+// DELETE: Delete all products from the inventory
+app.delete('/api/food/delete/all', async (req, res) => {
+    try {
+      console.log('Delete all request received');
+      const result = await collection.deleteMany({});
+      console.log('Delete result:', result);
+  
+      if (result.deletedCount === 0) {
+        console.log('No products found to delete');
+        return res.status(404).json({ error: 'No products found to delete' });
+      }
+  
+      res.status(200).json({ message: 'All products deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting all products:', error);
+      res.status(500).json({ error: `Failed to delete all products: ${error.message}` });
+    }
+  });
+  
