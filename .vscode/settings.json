@@ -1,0 +1,8 @@
+{
+    "appService.zipIgnorePattern": [
+        "node_modules{,/**}",
+        ".vscode{,/**}"
+    ],
+    "appService.defaultWebAppToDeploy": "/subscriptions/f4f56a69-dd59-4b67-9964-f6b42588710f/resourceGroups/foodinventory_group-b70f/providers/Microsoft.Web/sites/foodinventory",
+    "appService.deploySubpath": "."
+}
